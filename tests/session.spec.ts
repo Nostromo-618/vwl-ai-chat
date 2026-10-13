@@ -20,8 +20,8 @@ function loaded() {
 }
 
 describe('bounded sessions', () => {
-  it('exposes three primary candidates with pinned artifacts and compatibility variants', () => {
-    expect(NEW_MODEL_IDS).toHaveLength(3);
+  it('exposes one primary candidate with pinned artifacts and compatibility variants', () => {
+    expect(NEW_MODEL_IDS).toHaveLength(1);
     for (const id of NEW_MODEL_IDS) {
       const model = MODEL_OPTIONS.find((option) => option.id === id)!;
       expect(model.experimental).toBe(true);
@@ -53,7 +53,7 @@ describe('bounded sessions', () => {
       return pending;
     });
     const chat = new AiChat({
-      modelId: 'LFM2.5-230M-q4-ONNX',
+      modelId: 'LFM2.5-2.6B-q4f16-ONNX',
       loadTransformers: async () => ({ createEngine }),
     });
 
@@ -79,7 +79,7 @@ describe('bounded sessions', () => {
     });
     const createEngine = vi.fn(() => enginePending);
     const canceled = new AiChat({
-      modelId: 'LFM2.5-230M-q4-ONNX',
+      modelId: 'LFM2.5-2.6B-q4f16-ONNX',
       loadTransformers: () => runtimePending,
     });
     const loading = canceled.load();
@@ -93,7 +93,7 @@ describe('bounded sessions', () => {
     await vi.waitFor(() => expect(dispose).toHaveBeenCalledOnce());
 
     const failed = new AiChat({
-      modelId: 'LFM2.5-230M-q4-ONNX',
+      modelId: 'LFM2.5-2.6B-q4f16-ONNX',
       loadTransformers: async () => ({
         createEngine: async () => {
           throw new Error('adapter failed');

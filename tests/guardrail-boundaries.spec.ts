@@ -31,9 +31,9 @@ function loaded(modelId = 'gemma-4-E2B-it-web', onGuardrail?: (event: GuardrailE
 }
 
 describe('curated models', () => {
-  it('has six primary choices, eight pinned configurations and three engines', () => {
-    expect(PRIMARY_MODEL_OPTIONS).toHaveLength(6);
-    expect(MODEL_OPTIONS).toHaveLength(8);
+  it('has four primary choices, six pinned configurations and three engines', () => {
+    expect(PRIMARY_MODEL_OPTIONS).toHaveLength(4);
+    expect(MODEL_OPTIONS).toHaveLength(6);
     expect(new Set(MODEL_OPTIONS.map((m) => m.backend)).size).toBe(3);
     for (const model of MODEL_OPTIONS) {
       expect(model.revision).toMatch(/^[a-f0-9]{40}$/);
@@ -149,7 +149,7 @@ describe('normalized rules and moderation', () => {
 });
 
 describe('safe boundaries', () => {
-  it.each(['gemma-4-E2B-it-web', TINY_MODEL_ID, 'LFM2.5-230M-q4-ONNX'])(
+  it.each(['gemma-4-E2B-it-web', TINY_MODEL_ID, 'LFM2.5-2.6B-q4f16-ONNX'])(
     'holds every chunk until output passes on %s',
     async (id) => {
       const events: GuardrailEvent[] = [],

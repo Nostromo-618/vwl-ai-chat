@@ -8,7 +8,7 @@
 - Buffer complete checked output before callbacks, persistence and speech; discard canceled replies and reset contaminated context.
 - Keep the base role useful for general conversation, writing and extraction while preserving prompt-injection and harmful-content boundaries.
 - Preserve benign prompts and existing callback signatures; retain full visible history when context is trimmed.
-- Curate six primary models and two compatibility precisions; retain three host-injected engines and separate documented model tools from executable integration.
+- Curate four primary models and two compatibility precisions (Gemma E2B/E4B, Tiny Qwen3 0.6B, LFM2.5 2.6B); drop LFM 230M/350M; retain three host-injected engines and separate documented model tools from executable integration.
 - Remove retired catalog/workaround paths, preserving small deprecated exports and existing caches/history.
 - Add bounded Unicode/confusable/encoding scans, selected PyRIT rules, pinned obscenity 0.4.6, contextual moderation and structured rejection events.
 - Screen sources, imported history and tool data; render unsafe link destinations inertly.

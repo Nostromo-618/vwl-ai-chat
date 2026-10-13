@@ -159,7 +159,7 @@ describe('generation boundary', () => {
 for (const backend of ['litert', 'transformers'] as const) {
   it(`${backend} uses the shared gate and keeps rejected replies out of final callbacks`, async () => {
     const chat = new AiChat({
-      modelId: backend === 'litert' ? 'gemma-4-E2B-it-web' : 'LFM2.5-230M-q4-ONNX',
+      modelId: backend === 'litert' ? 'gemma-4-E2B-it-web' : 'LFM2.5-2.6B-q4f16-ONNX',
     });
     chat._isLoaded = true;
     const chunks = [prose, ' fuck'];

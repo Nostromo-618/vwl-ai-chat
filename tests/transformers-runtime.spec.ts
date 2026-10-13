@@ -20,7 +20,7 @@ function fakeEngine(overrides: Partial<TransformersEngine> = {}) {
 
 function chatWith(engine: TransformersEngine) {
   return new AiChat({
-    modelId: 'LFM2.5-230M-q4-ONNX',
+    modelId: 'LFM2.5-2.6B-q4f16-ONNX',
     systemPromptOptions: { product: 'Vanduo Web Labs evaluation' },
     loadTransformers: async () => ({ createEngine: async () => engine }),
   });

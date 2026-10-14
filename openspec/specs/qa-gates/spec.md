@@ -1,7 +1,7 @@
 # qa-gates Specification
 
 ## Purpose
-Defines dual QA gates and release documentation for `@vanduo-oss/vwl-ai-chat`. `pnpm test:ci` stays free of WebGPU model inference.
+Defines dual QA gates and release documentation for `@wwl/wwl-ai-chat`. `pnpm test:ci` stays free of WebGPU model inference.
 ## Requirements
 ### Requirement: dual-test-tiers
 

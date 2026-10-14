@@ -1,4 +1,4 @@
-# vwl-guardrails-llm Specification
+# wwl-guardrails-llm Specification
 
 ## Purpose
 FOSS LLM input/output guardrails and tool-call allowlisting for on-device chat hosts.

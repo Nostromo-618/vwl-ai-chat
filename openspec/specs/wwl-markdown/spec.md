@@ -1,4 +1,4 @@
-# vwl-markdown Specification
+# wwl-markdown Specification
 
 ## Purpose
 CSP-safe markdown-to-HTML helpers that escape untrusted content and support a basic GFM subset.

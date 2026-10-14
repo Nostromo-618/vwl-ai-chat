@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping with `@vanduo-oss/vwl-ai-chat`.
+Thanks for helping with `@wwl/wwl-ai-chat`.
 
 ## Prerequisites
 

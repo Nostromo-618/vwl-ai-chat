@@ -63,9 +63,6 @@ import { MODEL_OPTIONS } from './model-catalog.js';
 export { MODEL_OPTIONS, MODEL_GROUPS } from './model-catalog.js';
 const GiB = 1024 ** 3;
 
-/** Suggested Tiny model when load-capacity heuristics say the device is weak. */
-export const TINY_MODEL_ID = 'Qwen3-0.6B-q4f16_1-MLC';
-
 /**
  * Soft copy for the freeze window during WASM/WebGPU init (unavoidable in-browser).
  * Shown while weights upload / shaders compile after download.
@@ -316,7 +313,7 @@ export function buildWeakDeviceConfirmCopy({
     approxGb != null && Number.isFinite(approxGb) ? `~${approxGb.toFixed(1)} GB` : 'a large';
   const prefer = recommendedLabel
     ? `Prefer “${recommendedLabel}” on older or low-RAM machines, close other heavy tabs, then continue.`
-    : 'Prefer a Tiny / smaller model on older or low-RAM machines, close other heavy tabs, then continue.';
+    : 'Close other heavy tabs, then continue.';
   return [
     `This device looks constrained for ${size} local model.`,
     '',
@@ -539,7 +536,7 @@ export function collectDeviceSignals(adapter: any = null) {
 
 /**
  * LM Studio–style pre-load heuristic (browser-limited).
- * Returns level: 'ok' | 'caution' | 'high' plus human reasons and a Tiny recommendation.
+ * Returns level: 'ok' | 'caution' | 'high' plus human reasons. No smaller catalog model is recommended.
  *
  * @param {{ modelId?: string, systemInfo?: Record<string, unknown> }} [opts]
  */
@@ -607,11 +604,6 @@ export function assessLoadCapacity(opts: Record<string, any> = {}) {
     reasons.push(`Modest CPU (${cores} cores) with a ~${approxGb.toFixed(1)} GB model.`);
   }
 
-  const recommended =
-    level === 'ok'
-      ? null
-      : getModelOption(TINY_MODEL_ID) || MODEL_OPTIONS.find((m) => m.tier === 'Tiny') || null;
-
   return {
     level,
     reasons,
@@ -620,8 +612,8 @@ export function assessLoadCapacity(opts: Record<string, any> = {}) {
     deviceMemory,
     hardwareConcurrency: cores,
     maxStorageBufferBindingSize: maxStorage,
-    recommendedModelId: recommended?.id || null,
-    recommendedLabel: recommended ? getModelDisplayName(recommended.id) : null,
+    recommendedModelId: null,
+    recommendedLabel: null,
     freezeHint: LOAD_FREEZE_HINT,
   };
 }

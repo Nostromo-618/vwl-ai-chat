@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AiChat, TINY_MODEL_ID } from '../src/ai-chat.js';
+import { AiChat } from '../src/ai-chat.js';
+
+/** Removed catalog id. Unknown ids still use the WebLLM completion adapter. */
+const WEBLLM_SHAPED_ID = 'Qwen3-0.6B-q4f16_1-MLC';
 import { boundedInteger, selectContext, sourceContext, runBoundedTool } from '../src/session.js';
 import { cancelRuntime, disposeRuntime } from '../src/runtime.js';
 import { validateSchema } from '../src/guardrails/tools.js';
@@ -131,7 +134,7 @@ describe('bounded sessions', () => {
       resolveEngine = resolve;
     });
     const chat = new AiChat({
-      modelId: TINY_MODEL_ID,
+      modelId: WEBLLM_SHAPED_ID,
       loadWebLLM: async () => ({
         CreateMLCEngine: vi.fn((_id: string, options: any) => {
           loadSignal = options.signal;
@@ -140,7 +143,9 @@ describe('bounded sessions', () => {
       }),
     });
 
-    const loading = chat.load();
+    await expect(chat.load()).rejects.toThrow(/supported catalog/);
+    chat._isLoading = true;
+    const loading = chat._loadWebLLM();
     await vi.waitFor(() => expect(loadSignal).toBeInstanceOf(AbortSignal));
     chat.cancel();
     await expect(loading).rejects.toMatchObject({ name: 'AbortError' });
@@ -174,12 +179,34 @@ describe('bounded sessions', () => {
     await chat.load();
     expect(await chat.generate('Hello')).toBe('Recovered');
   });
+  it('sends enable_thinking false when a catalog model disables thinking', async () => {
+    const model = (await import('../src/model-catalog.js')).MODEL_OPTIONS.find(
+      (entry) => entry.id === 'LFM2.5-2.6B-q4f16-ONNX',
+    );
+    if (!model) throw new Error('missing LFM catalog entry');
+    const savedFamily = model.family;
+    model.disableThinking = true;
+    model.family = 'gemma4';
+    try {
+      const chat = new AiChat({ modelId: model.id });
+      chat._isLoaded = true;
+      chat.engine = {
+        countTokens: async () => 8,
+        reset: async () => {},
+        generate: async () => ({ reply: 'Visible answer', usage: null }),
+      };
+      expect(await chat.generate('Hello')).toBe('Visible answer');
+    } finally {
+      delete model.disableThinking;
+      model.family = savedFamily;
+    }
+  });
   it.each([
     ['<think>', '</think>'],
     ['<|think|>', '<|/think|>'],
     ['<|channel>thought', '<channel|>'],
   ])('holds unfinished thought channel %s before display', async (open, close) => {
-    const chat = new AiChat({ modelId: TINY_MODEL_ID });
+    const chat = new AiChat({ modelId: WEBLLM_SHAPED_ID });
     chat._isLoaded = true;
     let request: any;
     chat.engine = {
@@ -198,7 +225,7 @@ describe('bounded sessions', () => {
     const update = vi.fn();
     expect(await chat.generate('Hello', { onUpdate: update })).toBe('Visible answer');
     expect(update.mock.calls).toEqual([['Visible answer']]);
-    expect(request.extra_body).toEqual({ enable_thinking: false });
+    expect(request.extra_body).toBeUndefined();
     expect(request.enable_thinking).toBeUndefined();
   });
   it('rebuilds native context for reference changes, token pressure and response limits', async () => {
@@ -247,7 +274,7 @@ describe('bounded sessions', () => {
     expect(update.mock.calls).toEqual([[reply]]);
   });
   it('never retries an empty WebLLM stream after cancellation', async () => {
-    const chat = new AiChat({ modelId: TINY_MODEL_ID });
+    const chat = new AiChat({ modelId: WEBLLM_SHAPED_ID });
     chat._isLoaded = true;
     const reload = vi.fn();
     chat.engine = {
@@ -430,7 +457,7 @@ describe('bounded sessions', () => {
   });
   it('applies custom instructions and output limits on WebLLM', async () => {
     const chat = new AiChat({
-      modelId: TINY_MODEL_ID,
+      modelId: WEBLLM_SHAPED_ID,
       systemPromptOptions: { product: 'Custom Labs' },
     });
     chat._isLoaded = true;

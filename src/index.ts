@@ -4,7 +4,6 @@ export {
   TOOLS_UNSUPPORTED_ERROR,
   MODEL_GROUPS,
   MODEL_OPTIONS,
-  TINY_MODEL_ID,
   LOAD_FREEZE_HINT,
   inferLoadSource,
   describeLoadProgress,

@@ -36,7 +36,6 @@ export type ModelOption = {
 };
 export const MODEL_GROUPS = [
   { id: 'gemma4', label: 'Gemma 4' },
-  { id: 'qwen3', label: 'Qwen 3 Tiny' },
   { id: 'liquid', label: 'Liquid LFM 2.5' },
 ];
 
@@ -66,33 +65,6 @@ const models: ModelOption[] = [
         : 'Larger general chat and documentation assistant.',
     runtimeVersion: '0.17.1',
     reasoning: 'none',
-  })),
-  ...(['q4f16_1', 'q4f32_1'] as const).map((precision): ModelOption => ({
-    id: `Qwen3-0.6B-${precision}-MLC`,
-    label: 'Qwen3 0.6B · Tiny',
-    tier: 'Tiny',
-    group: 'qwen3',
-    family: 'qwen3',
-    backend: 'webllm',
-    requires: precision === 'q4f16_1' ? ['shader-f16'] : [],
-    approxBytes: 0,
-    maxNumTokens: 4096,
-    disableThinking: true,
-    precision,
-    catalogRole: precision === 'q4f16_1' ? 'primary' : 'variant',
-    ...(precision === 'q4f16_1'
-      ? { fallbackId: 'Qwen3-0.6B-q4f32_1-MLC' }
-      : { variantOf: 'Qwen3-0.6B-q4f16_1-MLC' }),
-    capabilities: { chat: true, docs: true, tools: false },
-    toolCalling: {
-      modelSupport: 'documented',
-      integration: 'pending',
-      source: 'https://huggingface.co/Qwen/Qwen3-0.6B#agentic-use',
-    },
-    license: 'Apache-2.0',
-    purpose: 'Small general assistant; limited reasoning and grounding accuracy.',
-    reasoning: 'optional',
-    runtimeVersion: '0.2.85',
   })),
   ...(['q4f16', 'q4'] as const).map((precision): ModelOption => ({
     id: `LFM2.5-2.6B-${precision}-ONNX`,
@@ -146,8 +118,4 @@ export function getModelChoiceLabel(model: ModelOption): string {
 export const NEW_MODEL_IDS = PRIMARY_MODEL_OPTIONS.filter((model) => model.family === 'lfm25').map(
   (model) => model.id,
 );
-export const BASELINE_MODEL_IDS = [
-  'gemma-4-E2B-it-web',
-  'gemma-4-E4B-it-web',
-  'Qwen3-0.6B-q4f16_1-MLC',
-];
+export const BASELINE_MODEL_IDS = ['gemma-4-E2B-it-web', 'gemma-4-E4B-it-web'];

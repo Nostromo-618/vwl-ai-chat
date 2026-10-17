@@ -565,7 +565,7 @@ describe('AiChat load + generate (mocked LiteRT)', () => {
 
   it('throws TOOLS_UNSUPPORTED_ERROR for WebLLM models', async () => {
     const { AiChat, TOOLS_UNSUPPORTED_ERROR } = await importAiChat();
-    const chat = new AiChat({ modelId: 'Qwen3-0.6B-q4f16_1-MLC' });
+    const chat = new AiChat({ modelId: 'LFM2.5-2.6B-q4f16-ONNX' });
     chat.registerTools([{ name: 'ping', description: 'p', parameters: { type: 'object' } }]);
     chat._isLoaded = true;
     chat.engine = {};
@@ -581,47 +581,17 @@ describe('AiChat WebLLM path (mocked)', () => {
     vi.restoreAllMocks();
   });
 
-  it('retains runtime model fields while applying pinned local URLs', async () => {
+  it('rejects removed Qwen ids before starting WebLLM', async () => {
     stubBrowserStorageAndFetch({ webllmLocal: true });
     const { AiChat } = await importAiChat();
-    const id = 'Qwen3-0.6B-q4f16_1-MLC';
-    const runtimeRecord = {
-      model: 'https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC',
-      model_id: id,
-      model_lib: 'https://example.test/model.wasm',
-      vram_required_MB: 1629.49,
-      low_resource_required: true,
-      overrides: { context_window_size: 4096, max_history_size: 1 },
-    };
-    const engine = {};
-    const CreateMLCEngine = vi.fn(
-      async (
-        _modelId: string,
-        _config: { appConfig?: { model_list: Record<string, unknown>[] } },
-      ) => engine,
-    );
+    const CreateMLCEngine = vi.fn(async () => ({}));
     const chat = new AiChat({
-      modelId: id,
-      loadWebLLM: async () => ({
-        CreateMLCEngine,
-        prebuiltAppConfig: { model_list: [runtimeRecord] },
-      }),
+      modelId: 'Qwen3-0.6B-q4f16_1-MLC',
+      loadWebLLM: async () => ({ CreateMLCEngine, prebuiltAppConfig: { model_list: [] } }),
     });
-    const sources: string[] = [];
-    chat.onProgress(({ source }) => {
-      if (source) sources.push(source);
-    });
-    await chat.load();
-    expect(sources).toContain('local');
-    const config = CreateMLCEngine.mock.calls[0]?.[1];
-    expect(config?.appConfig?.model_list[0]).toMatchObject({
-      vram_required_MB: 1629.49,
-      low_resource_required: true,
-      required_features: ['shader-f16'],
-      overrides: { context_window_size: 4096, max_history_size: 1 },
-    });
-    expect(config?.appConfig?.model_list[0].model).toContain(`/models/${id}/resolve/main/`);
-    await chat.dispose();
+    await expect(chat.load()).rejects.toThrow(/supported catalog/);
+    await expect(chat.setModelId('Qwen3-0.6B-q4f32_1-MLC')).rejects.toThrow(/supported catalog/);
+    expect(CreateMLCEngine).not.toHaveBeenCalled();
   });
 
   it('loads and generates via CreateMLCEngine', async () => {
@@ -641,13 +611,9 @@ describe('AiChat WebLLM path (mocked)', () => {
       unload: vi.fn(async () => {}),
     };
     const { AiChat } = await importAiChat();
-    const chat = new AiChat({
-      modelId: 'Qwen3-0.6B-q4f16_1-MLC',
-      loadWebLLM: async () => ({
-        CreateMLCEngine: vi.fn(async () => engine),
-      }),
-    });
-    await chat.load();
+    const chat = new AiChat({ modelId: 'Qwen3-0.6B-q4f16_1-MLC' });
+    chat._isLoaded = true;
+    chat.engine = engine;
     const reply = await chat.generate('hi', undefined, (u) => {
       expect(u).toBeTruthy();
     });
@@ -680,11 +646,9 @@ describe('AiChat WebLLM path (mocked)', () => {
       return { choices: [{ message: { content: '' } }] };
     }) as any;
     const { AiChat } = await importAiChat();
-    const chat = new AiChat({
-      modelId: 'Qwen3-0.6B-q4f16_1-MLC',
-      loadWebLLM: async () => ({ CreateMLCEngine: vi.fn(async () => engine) }),
-    });
-    await chat.load();
+    const chat = new AiChat({ modelId: 'Qwen3-0.6B-q4f16_1-MLC' });
+    chat._isLoaded = true;
+    chat.engine = engine;
     await expect(chat.generate('hi')).rejects.toThrow(/empty response/);
   });
 
@@ -704,11 +668,9 @@ describe('AiChat WebLLM path (mocked)', () => {
       resetChat: vi.fn(async () => {}),
     };
     const { AiChat } = await importAiChat();
-    const chat = new AiChat({
-      modelId: 'Qwen3-0.6B-q4f16_1-MLC',
-      loadWebLLM: async () => ({ CreateMLCEngine: vi.fn(async () => engine) }),
-    });
-    await chat.load();
+    const chat = new AiChat({ modelId: 'Qwen3-0.6B-q4f16_1-MLC' });
+    chat._isLoaded = true;
+    chat.engine = engine;
     chat.reset();
     await chat.generate('hi');
     expect(engine.resetChat).toHaveBeenCalledOnce();
@@ -731,11 +693,9 @@ describe('AiChat WebLLM path (mocked)', () => {
       resetChat: vi.fn(async () => {}),
     };
     const { AiChat } = await importAiChat();
-    const chat = new AiChat({
-      modelId: 'Qwen3-0.6B-q4f16_1-MLC',
-      loadWebLLM: async () => ({ CreateMLCEngine: vi.fn(async () => engine) }),
-    });
-    await chat.load();
+    const chat = new AiChat({ modelId: 'Qwen3-0.6B-q4f16_1-MLC' });
+    chat._isLoaded = true;
+    chat.engine = engine;
     chat.reset();
     await chat.generate('hi');
     expect(engine.resetChat).toHaveBeenCalled();

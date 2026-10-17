@@ -1,7 +1,7 @@
 import cases from './fixtures/guardrail-cases.json';
 const { attacks, benign } = cases;
 import { describe, it, expect, vi } from 'vitest';
-import { AiChat, TINY_MODEL_ID } from '../src/ai-chat.js';
+import { AiChat } from '../src/ai-chat.js';
 import {
   MODEL_OPTIONS,
   PRIMARY_MODEL_OPTIONS,
@@ -31,10 +31,11 @@ function loaded(modelId = 'gemma-4-E2B-it-web', onGuardrail?: (event: GuardrailE
 }
 
 describe('curated models', () => {
-  it('has four primary choices, six pinned configurations and three engines', () => {
-    expect(PRIMARY_MODEL_OPTIONS).toHaveLength(4);
-    expect(MODEL_OPTIONS).toHaveLength(6);
-    expect(new Set(MODEL_OPTIONS.map((m) => m.backend)).size).toBe(3);
+  it('has three primary choices, four pinned configurations and two engines', () => {
+    expect(PRIMARY_MODEL_OPTIONS).toHaveLength(3);
+    expect(MODEL_OPTIONS).toHaveLength(4);
+    expect(new Set(MODEL_OPTIONS.map((m) => m.backend)).size).toBe(2);
+    expect(MODEL_OPTIONS.some((model) => /qwen/i.test(model.id))).toBe(false);
     for (const model of MODEL_OPTIONS) {
       expect(model.revision).toMatch(/^[a-f0-9]{40}$/);
       expect(model.artifacts?.length).toBeGreaterThan(0);
@@ -44,8 +45,8 @@ describe('curated models', () => {
         model.capabilities?.tools ? 'Tools available' : 'integration pending',
       );
     }
-    expect(getModelVariants(TINY_MODEL_ID)).toHaveLength(2);
-    expect(getModelVariants('Qwen3-0.6B-q4f32_1-MLC')).toEqual(getModelVariants(TINY_MODEL_ID));
+    expect(getModelVariants('Qwen3-0.6B-q4f16_1-MLC')).toEqual([]);
+    expect(getModelVariants('Qwen3-0.6B-q4f32_1-MLC')).toEqual([]);
     expect(getModelVariants('missing')).toEqual([]);
   });
   it('rejects retired selections without invoking a runtime loader', async () => {
@@ -149,14 +150,15 @@ describe('normalized rules and moderation', () => {
 });
 
 describe('safe boundaries', () => {
-  it.each(['gemma-4-E2B-it-web', TINY_MODEL_ID, 'LFM2.5-2.6B-q4f16-ONNX'])(
+  const webllmShapedId = 'Qwen3-0.6B-q4f16_1-MLC';
+  it.each(['gemma-4-E2B-it-web', webllmShapedId, 'LFM2.5-2.6B-q4f16-ONNX'])(
     'holds every chunk until output passes on %s',
     async (id) => {
       const events: GuardrailEvent[] = [],
         updates: string[] = [];
       const chat = loaded(id, (event) => events.push(event));
       const reply = 'This is fucking unsafe.';
-      if (id === TINY_MODEL_ID)
+      if (id === webllmShapedId)
         chat.engine = {
           chat: {
             completions: {
@@ -389,7 +391,7 @@ describe('additional boundary recovery', () => {
     expect(update).toHaveBeenCalledOnce();
   });
   it('aborts excessively large backend streams without exposing content', async () => {
-    const chat = loaded(TINY_MODEL_ID),
+    const chat = loaded('Qwen3-0.6B-q4f16_1-MLC'),
       update = vi.fn();
     chat.engine = {
       chat: {
@@ -422,7 +424,7 @@ describe('additional boundary recovery', () => {
 
 describe('worker cancellation lock recovery', () => {
   it('drains interrupted hidden chunks before returning AbortError', async () => {
-    const chat = loaded(TINY_MODEL_ID),
+    const chat = loaded('Qwen3-0.6B-q4f16_1-MLC'),
       controller = new AbortController();
     const update = vi.fn(),
       interrupt = vi.fn();

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MODEL_GROUPS,
   MODEL_OPTIONS,
-  TINY_MODEL_ID,
   LOAD_FREEZE_HINT,
   inferLoadSource,
   describeLoadProgress,
@@ -35,10 +34,8 @@ import {
 import { LLM_OUTPUT_BLOCK_MESSAGE } from '../src/guardrails/llm.js';
 
 describe('MODEL catalog', () => {
-  it('groups include gemma4 and qwen3', () => {
-    expect(MODEL_GROUPS.map((g) => g.id)).toEqual(
-      expect.arrayContaining(['gemma4', 'qwen3', 'liquid']),
-    );
+  it('groups include gemma4 and liquid', () => {
+    expect(MODEL_GROUPS.map((g) => g.id)).toEqual(['gemma4', 'liquid']);
   });
 
   it('recommended default is Gemma 4 E2B LiteRT web-official', () => {
@@ -51,9 +48,13 @@ describe('MODEL catalog', () => {
 
   it('getModelOption / display name', () => {
     expect(getModelOption('missing')).toBeNull();
+    expect(getModelOption('Qwen3-0.6B-q4f16_1-MLC')).toBeNull();
+    expect(getModelOption('Qwen3-0.6B-q4f32_1-MLC')).toBeNull();
     expect(getModelDisplayName('missing')).toBe('missing');
     expect(getModelDisplayName('gemma-4-E2B-it-web')).toContain('Gemma 4 E2B');
-    expect(TINY_MODEL_ID).toBe('Qwen3-0.6B-q4f16_1-MLC');
+    expect(MODEL_OPTIONS.some((model) => model.family === 'qwen3' || model.tier === 'Tiny')).toBe(
+      false,
+    );
   });
 });
 
@@ -242,10 +243,13 @@ describe('LiteRT runtime guards', () => {
 
 describe('UI helpers', () => {
   it('buildWeakDeviceConfirmCopy', () => {
-    expect(buildWeakDeviceConfirmCopy({ approxGb: 2, recommendedLabel: 'Tiny' })).toContain('Tiny');
+    expect(buildWeakDeviceConfirmCopy({ approxGb: 2, recommendedLabel: 'Gemma 4 E2B' })).toContain(
+      'Gemma 4 E2B',
+    );
     expect(buildWeakDeviceConfirmCopy({ approxGb: Number.NaN })).toMatch(/a large/);
     expect(buildWeakDeviceConfirmCopy({})).toMatch(/Load anyway/);
-    expect(buildWeakDeviceConfirmCopy()).toMatch(/Tiny \/ smaller/);
+    expect(buildWeakDeviceConfirmCopy()).toMatch(/Close other heavy tabs/);
+    expect(buildWeakDeviceConfirmCopy()).not.toMatch(/Tiny/);
   });
 
   it('shouldFocusChatComposer', () => {
@@ -349,13 +353,15 @@ describe('device capacity', () => {
       systemInfo: { deviceMemory: 4, hardwareConcurrency: 8 },
     });
     expect(highMem.level).toBe('high');
-    expect(highMem.recommendedModelId).toBe(TINY_MODEL_ID);
+    expect(highMem.recommendedModelId).toBeNull();
+    expect(highMem.recommendedLabel).toBeNull();
 
-    const cautionTiny = assessLoadCapacity({
+    const removedTiny = assessLoadCapacity({
       modelId: 'Qwen3-0.6B-q4f16_1-MLC',
       systemInfo: { deviceMemory: 4, hardwareConcurrency: 8 },
     });
-    expect(cautionTiny.level).toBe('caution');
+    expect(removedTiny.level).toBe('high');
+    expect(removedTiny.recommendedModelId).toBeNull();
 
     const highGpu = assessLoadCapacity({
       modelId: 'gemma-4-E2B-it-web',
@@ -367,7 +373,7 @@ describe('device capacity', () => {
     });
     expect(highGpu.level).toBe('high');
 
-    const smallOnLowGpu = assessLoadCapacity({
+    const removedOnLowGpu = assessLoadCapacity({
       modelId: 'Qwen3-0.6B-q4f16_1-MLC',
       systemInfo: {
         deviceMemory: 16,
@@ -375,7 +381,8 @@ describe('device capacity', () => {
         maxStorageBufferBindingSize: 64 * 1024 * 1024,
       },
     });
-    expect(smallOnLowGpu.level).toBe('ok');
+    expect(removedOnLowGpu.level).toBe('high');
+    expect(removedOnLowGpu.recommendedModelId).toBeNull();
 
     const cautionLargeOn8gb = assessLoadCapacity({
       modelId: 'gemma-4-E4B-it-web',
@@ -389,11 +396,12 @@ describe('device capacity', () => {
     });
     expect(['caution', 'high']).toContain(cautionCores.level);
 
-    const twoCoresSmall = assessLoadCapacity({
+    const twoCoresRemoved = assessLoadCapacity({
       modelId: 'Qwen3-0.6B-q4f16_1-MLC',
       systemInfo: { deviceMemory: 16, hardwareConcurrency: 2 },
     });
-    expect(twoCoresSmall.level).toBe('ok');
+    expect(twoCoresRemoved.level).toBe('caution');
+    expect(twoCoresRemoved.recommendedModelId).toBeNull();
 
     const modestCores = assessLoadCapacity({
       modelId: 'gemma-4-E4B-it-web',
@@ -403,6 +411,66 @@ describe('device capacity', () => {
 
     const noSystemInfo = assessLoadCapacity({ modelId: 'gemma-4-E2B-it-web' });
     expect(['ok', 'caution', 'high']).toContain(noSystemInfo.level);
+  });
+
+  it('keeps sub-gigabyte sizes advisory and does not recommend a removed model', () => {
+    const model = MODEL_OPTIONS.find((entry) => entry.id === 'LFM2.5-2.6B-q4f16-ONNX');
+    if (!model) throw new Error('missing LFM catalog entry');
+    const saved = model.approxBytes;
+    try {
+      model.approxBytes = 0.3 * 1024 ** 3;
+      const caution = assessLoadCapacity({
+        modelId: model.id,
+        systemInfo: { deviceMemory: 4, hardwareConcurrency: 8 },
+      });
+      expect(caution.level).toBe('caution');
+      expect(caution.recommendedModelId).toBeNull();
+
+      const smallGpu = assessLoadCapacity({
+        modelId: model.id,
+        systemInfo: {
+          deviceMemory: 16,
+          hardwareConcurrency: 8,
+          maxStorageBufferBindingSize: 64 * 1024 * 1024,
+        },
+      });
+      expect(smallGpu.level).toBe('ok');
+
+      const twoCores = assessLoadCapacity({
+        modelId: model.id,
+        systemInfo: { deviceMemory: 16, hardwareConcurrency: 2 },
+      });
+      expect(twoCores.level).toBe('ok');
+
+      model.approxBytes = 0.7 * 1024 ** 3;
+      const alreadyHigh = assessLoadCapacity({
+        modelId: model.id,
+        systemInfo: {
+          deviceMemory: 4,
+          hardwareConcurrency: 8,
+          maxStorageBufferBindingSize: 64 * 1024 * 1024,
+        },
+      });
+      expect(alreadyHigh.level).toBe('high');
+      expect(alreadyHigh.recommendedModelId).toBeNull();
+
+      model.approxBytes = 4 * 1024 ** 3;
+      const largeOn8 = assessLoadCapacity({
+        modelId: model.id,
+        systemInfo: { deviceMemory: 8, hardwareConcurrency: 8 },
+      });
+      expect(largeOn8.level).toBe('caution');
+      expect(largeOn8.recommendedModelId).toBeNull();
+    } finally {
+      model.approxBytes = saved;
+    }
+
+    const highAndFewCores = assessLoadCapacity({
+      modelId: 'gemma-4-E2B-it-web',
+      systemInfo: { deviceMemory: 4, hardwareConcurrency: 2 },
+    });
+    expect(highAndFewCores.level).toBe('high');
+    expect(highAndFewCores.recommendedModelId).toBeNull();
   });
 
   it('yieldToMain prefers scheduler.yield when present', async () => {

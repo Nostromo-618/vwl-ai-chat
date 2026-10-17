@@ -26,7 +26,7 @@ describe('smoke', () => {
   });
 
   it('rejects tools on non-LiteRT models', async () => {
-    const chat = new AiChat({ modelId: 'Qwen3-0.6B-q4f16_1-MLC' });
+    const chat = new AiChat({ modelId: 'LFM2.5-2.6B-q4f16-ONNX' });
     chat.registerTools([{ name: 'ping', description: 'ping', parameters: { type: 'object' } }]);
     (chat as { _isLoaded: boolean; engine: object })._isLoaded = true;
     (chat as { engine: object }).engine = {};

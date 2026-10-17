@@ -82,5 +82,7 @@ export {
 } from './model-catalog.js';
 export type { ModelOption, ModelArtifact } from './model-catalog.js';
 export type { TransformersEngine, TransformersRuntime } from './transformers-runtime.js';
+export { onnxTextLoadPlan } from './transformers-runtime.js';
+export type { OnnxTextLoadPlan } from './transformers-runtime.js';
 
 export type { GuardrailProfile } from './guardrails/moderation.js';

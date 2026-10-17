@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AiChat } from '../src/ai-chat.js';
-import type { TransformersEngine } from '../src/transformers-runtime.js';
+import { MODEL_OPTIONS } from '../src/model-catalog.js';
+import { onnxTextLoadPlan, type TransformersEngine } from '../src/transformers-runtime.js';
 
 function fakeEngine(overrides: Partial<TransformersEngine> = {}) {
   const engine: TransformersEngine = {
@@ -129,5 +130,35 @@ describe('host-provided Transformers runtime', () => {
     );
     expect(updates).toEqual(['recovered']);
     await chat.dispose();
+  });
+});
+
+describe('ONNX text load plan', () => {
+  it('keeps LFM on the single decoder graph', () => {
+    const q4f16 = MODEL_OPTIONS.find((model) => model.id === 'LFM2.5-2.6B-q4f16-ONNX')!;
+    const q4 = MODEL_OPTIONS.find((model) => model.id === 'LFM2.5-2.6B-q4-ONNX')!;
+    expect(onnxTextLoadPlan(q4f16)).toEqual({
+      modelClass: 'AutoModelForCausalLM',
+      dtype: 'q4f16',
+      useExternalDataFormat: 2,
+    });
+    expect(onnxTextLoadPlan(q4)).toEqual({
+      modelClass: 'AutoModelForCausalLM',
+      dtype: 'q4',
+      useExternalDataFormat: 1,
+    });
+  });
+
+  it('loads Ministral Instruct as a text-only q4 decoder plus fp16 embeddings', () => {
+    const model = MODEL_OPTIONS.find(
+      (entry) => entry.id === 'Ministral-3-3B-Instruct-2512-q4-ONNX',
+    )!;
+    const plan = onnxTextLoadPlan(model);
+    expect(plan).toEqual({
+      modelClass: 'Ministral3ForCausalLM',
+      dtype: { decoder_model_merged: 'q4', embed_tokens: 'fp16' },
+    });
+    expect(JSON.stringify(plan)).not.toContain('vision_encoder');
+    expect(plan.useExternalDataFormat).toBeUndefined();
   });
 });

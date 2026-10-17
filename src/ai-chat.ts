@@ -45,7 +45,7 @@ import type { TransformersRuntime, TransformersEngine } from './transformers-run
 // ═══════════════════════════════════════════════════════════════════════
 
 const CDN = {
-  webllm: 'https://esm.run/@mlc-ai/web-llm@0.2.85',
+  webllm: 'https://esm.run/@mlc-ai/web-llm@0.2.86',
   litert: 'https://cdn.jsdelivr.net/npm/@litert-lm/core@0.17.1/+esm',
 };
 
@@ -226,7 +226,7 @@ export function describeLoadProgress(
 }
 
 /**
- * PrefillDecode `.litertlm` spikes (Qwen3 / Ministral) cannot load in current
+ * PrefillDecode `.litertlm` spikes cannot load in the current
  * `@litert-lm/core` web runtime:
  * - default `Backend.GPU_ARTISAN` always uses streaming ModelAssets →
  *   "Streaming kTfLitePrefillDecode models is not supported yet."
@@ -235,7 +235,7 @@ export function describeLoadProgress(
  * Google’s JS docs still list only Gemma `*-it-web` builds.
  */
 export const LITERT_PREFILLDECODE_UNSUPPORTED_REASON =
-  'Unsupported in the current LiteRT-LM.js runtime: PrefillDecode .litertlm models cannot load (GPU_ARTISAN streaming rejected; Backend.GPU non-stream create fails). Use Gemma 4 LiteRT (web-official) or Qwen3 0.6B WebLLM (Tiny).';
+  'Unsupported in the current LiteRT-LM.js runtime: PrefillDecode .litertlm models cannot load (GPU_ARTISAN streaming rejected; Backend.GPU non-stream create fails). Use Gemma 4 LiteRT (web-official).';
 
 /**
  * @param {string | { backend?: string, litertKind?: string, litertRuntime?: string } | null | undefined} modelOrId
@@ -370,7 +370,7 @@ function generationConfigForModel(modelId) {
   const cfg: Record<string, any> = wantsGemmaBudget
     ? { ...GEMMA4_GENERATION_CONFIG }
     : { ...DEFAULT_GENERATION_CONFIG };
-  // WebLLM 0.2.85 reads this from extra_body and supports it for Qwen3.
+  // WebLLM 0.2.86 reads enable_thinking from extra_body when a model sets disableThinking.
   if (option?.disableThinking) cfg.extra_body = { enable_thinking: false };
   if (option?.reasoning === 'required') cfg.max_tokens = 2048;
   return cfg;

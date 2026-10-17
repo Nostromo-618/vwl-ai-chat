@@ -30,21 +30,100 @@ function loaded(modelId = 'gemma-4-E2B-it-web', onGuardrail?: (event: GuardrailE
   return chat;
 }
 
+const experimentalIds = [
+  'Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC',
+  'Ministral-3-3B-Reasoning-2512-q4f16_1-MLC',
+  'Ministral-3-3B-Instruct-2512-q4-ONNX',
+  'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+];
+
 describe('curated models', () => {
-  it('has three primary choices, four pinned configurations and two engines', () => {
-    expect(PRIMARY_MODEL_OPTIONS).toHaveLength(3);
-    expect(MODEL_OPTIONS).toHaveLength(4);
-    expect(new Set(MODEL_OPTIONS.map((m) => m.backend)).size).toBe(2);
-    expect(MODEL_OPTIONS.some((model) => /qwen/i.test(model.id))).toBe(false);
+  it('keeps Gemma as the default and adds four experimental Mistral choices', () => {
+    expect(PRIMARY_MODEL_OPTIONS.map((model) => model.id)).toEqual([
+      'gemma-4-E2B-it-web',
+      'gemma-4-E4B-it-web',
+      'LFM2.5-2.6B-q4f16-ONNX',
+      ...experimentalIds,
+    ]);
+    expect(MODEL_OPTIONS).toHaveLength(8);
+    expect(new Set(MODEL_OPTIONS.map((m) => m.backend))).toEqual(
+      new Set(['litert', 'webllm', 'transformers']),
+    );
+    expect(
+      MODEL_OPTIONS.some((model) => /qwen|q4f32|vision_encoder|Small-4|14B|8B/i.test(model.id)),
+    ).toBe(false);
     for (const model of MODEL_OPTIONS) {
       expect(model.revision).toMatch(/^[a-f0-9]{40}$/);
       expect(model.artifacts?.length).toBeGreaterThan(0);
-      expect(model.approxBytes).toBeGreaterThan(0);
+      expect(model.artifacts?.reduce((sum, artifact) => sum + artifact.bytes, 0)).toBe(
+        model.approxBytes,
+      );
+      expect(
+        model.artifacts?.every(
+          (artifact) => artifact.bytes > 0 && (artifact.sha256 || artifact.gitSha1),
+        ),
+      ).toBe(true);
       expect(model.toolCalling?.source).toMatch(/^https:/);
       expect(getModelChoiceLabel(model)).toContain(
         model.capabilities?.tools ? 'Tools available' : 'integration pending',
       );
     }
+    for (const id of experimentalIds) {
+      const model = MODEL_OPTIONS.find((entry) => entry.id === id)!;
+      expect(model.experimental).toBe(true);
+      expect(model.catalogRole).toBe('primary');
+      expect(model.capabilities).toEqual({ chat: true, docs: true, tools: false });
+      expect(model.toolCalling?.integration).toBe('pending');
+      expect(model.license).toBe('apache-2.0');
+      expect(model.artifacts?.some((artifact) => artifact.path.includes('vision_encoder'))).toBe(
+        false,
+      );
+      expect(model.artifacts?.some((artifact) => artifact.path.includes('q4f32'))).toBe(false);
+      if (model.backend === 'webllm') {
+        expect(model.modelLibUrl).toMatch(/v0_2_86\/base\/.+q4f16_1_cs1k-webgpu\.wasm$/);
+      }
+    }
+    const instruct = MODEL_OPTIONS.find(
+      (model) => model.id === 'Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC',
+    )!;
+    const reasoning = MODEL_OPTIONS.find(
+      (model) => model.id === 'Ministral-3-3B-Reasoning-2512-q4f16_1-MLC',
+    )!;
+    const onnx = MODEL_OPTIONS.find(
+      (model) => model.id === 'Ministral-3-3B-Instruct-2512-q4-ONNX',
+    )!;
+    const mistral7 = MODEL_OPTIONS.find(
+      (model) => model.id === 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+    )!;
+    expect(instruct.backend).toBe('webllm');
+    expect(instruct.requires).toEqual(['shader-f16']);
+    expect(instruct.maxNumTokens).toBe(4096);
+    expect(instruct.overrides).toEqual({ context_window_size: 4096 });
+    expect(instruct.group).toBe('ministral3');
+    expect(reasoning.reasoning).toBe('required');
+    expect(reasoning.group).toBe('ministral3');
+    expect(reasoning.family).toBe('ministral3');
+    expect(onnx.backend).toBe('transformers');
+    expect(onnx.transformersGraph).toBe('ministral3-text');
+    expect(onnx.maxNumTokens).toBe(16384);
+    expect(onnx.group).toBe('ministral3');
+    expect(
+      onnx.artifacts?.map((artifact) => artifact.path).filter((path) => path.startsWith('onnx/')),
+    ).toEqual([
+      'onnx/decoder_model_merged_q4.onnx',
+      'onnx/decoder_model_merged_q4.onnx_data',
+      'onnx/decoder_model_merged_q4.onnx_data_1',
+      'onnx/embed_tokens_fp16.onnx',
+      'onnx/embed_tokens_fp16.onnx_data',
+    ]);
+    expect(mistral7.group).toBe('mistral7b');
+    expect(mistral7.overrides).toEqual({ context_window_size: 4096, sliding_window_size: -1 });
+    expect(mistral7.maxNumTokens).toBe(4096);
+    expect(mistral7.requires).toEqual(['shader-f16']);
+    expect(getModelVariants('LFM2.5-2.6B-q4f16-ONNX').map((model) => model.id)).toEqual([
+      'LFM2.5-2.6B-q4f16-ONNX',
+      'LFM2.5-2.6B-q4-ONNX',
+    ]);
     expect(getModelVariants('Qwen3-0.6B-q4f16_1-MLC')).toEqual([]);
     expect(getModelVariants('Qwen3-0.6B-q4f32_1-MLC')).toEqual([]);
     expect(getModelVariants('missing')).toEqual([]);

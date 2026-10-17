@@ -32,12 +32,18 @@ export type ModelOption = {
   capabilities?: { chat: boolean; docs: boolean; tools: boolean };
   runtimeVersion?: string;
   externalDataFiles?: number;
+  /** Text-only ONNX graph. Distinct from the single-file LFM decoder layout. */
+  transformersGraph?: 'ministral3-text';
   toolCalling?: { modelSupport: 'documented'; integration: 'native' | 'pending'; source: string };
 };
 export const MODEL_GROUPS = [
   { id: 'gemma4', label: 'Gemma 4' },
   { id: 'liquid', label: 'Liquid LFM 2.5' },
+  { id: 'ministral3', label: 'Ministral 3' },
+  { id: 'mistral7b', label: 'Mistral 7B' },
 ];
+const WEBLLM_LIB_PREFIX =
+  'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_86/base/';
 
 const models: ModelOption[] = [
   ...(['E2B', 'E4B'] as const).map((size): ModelOption => ({
@@ -93,6 +99,111 @@ const models: ModelOption[] = [
       source: 'https://huggingface.co/LiquidAI/LFM2.5-2.6B#tool-use',
     },
   })),
+  ...[
+    {
+      id: 'Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC',
+      label: 'Ministral 3 3B Instruct · Experimental',
+      tier: 'Experimental',
+      wasm: 'Ministral-3-3B-Instruct-2512-BF16-q4f16_1_cs1k-webgpu.wasm',
+      reasoning: 'none' as const,
+      purpose: 'Experimental general chat candidate.',
+      source: 'https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512',
+      estimatedWorkingBytes: Math.round(2863.69 * 1e6),
+      overrides: { context_window_size: 4096 },
+    },
+    {
+      id: 'Ministral-3-3B-Reasoning-2512-q4f16_1-MLC',
+      label: 'Ministral 3 3B Reasoning · Experimental',
+      tier: 'Reasoning candidate',
+      wasm: 'Ministral-3-3B-Reasoning-2512-q4f16_1_cs1k-webgpu.wasm',
+      reasoning: 'required' as const,
+      purpose: 'Experimental reasoning peer beside LFM 2.5. It does not replace LFM.',
+      source: 'https://huggingface.co/mistralai/Ministral-3-3B-Reasoning-2512',
+      estimatedWorkingBytes: Math.round(2863.69 * 1e6),
+      overrides: { context_window_size: 4096 },
+    },
+  ].map((model): ModelOption => ({
+    id: model.id,
+    label: model.label,
+    tier: model.tier,
+    group: 'ministral3',
+    family: 'ministral3',
+    backend: 'webllm',
+    requires: ['shader-f16'],
+    approxBytes: 0,
+    maxNumTokens: 4096,
+    experimental: true,
+    precision: 'q4f16',
+    catalogRole: 'primary',
+    license: 'apache-2.0',
+    purpose: model.purpose,
+    reasoning: model.reasoning,
+    runtimeVersion: '0.2.86',
+    estimatedWorkingBytes: model.estimatedWorkingBytes,
+    overrides: model.overrides,
+    modelLibUrl: `${WEBLLM_LIB_PREFIX}${model.wasm}`,
+    capabilities: { chat: true, docs: true, tools: false },
+    toolCalling: {
+      modelSupport: 'documented',
+      integration: 'pending',
+      source: model.source,
+    },
+  })),
+  {
+    id: 'Ministral-3-3B-Instruct-2512-q4-ONNX',
+    label: 'Ministral 3 3B Instruct ONNX · Experimental',
+    tier: 'Experimental',
+    group: 'ministral3',
+    family: 'ministral3',
+    backend: 'transformers',
+    requires: ['shader-f16'],
+    approxBytes: 0,
+    // Exported RoPE base. The ONNX graph uses dynamic lengths; this is not the 256k card.
+    maxNumTokens: 16384,
+    experimental: true,
+    precision: 'q4',
+    transformersGraph: 'ministral3-text',
+    repo: 'mistralai/Ministral-3-3B-Instruct-2512-ONNX',
+    catalogRole: 'primary',
+    license: 'apache-2.0',
+    purpose:
+      'Experimental text-only ONNX chat. Loads the q4 decoder and fp16 embeddings, not the vision encoder.',
+    reasoning: 'none',
+    runtimeVersion: '4.3.1',
+    capabilities: { chat: true, docs: true, tools: false },
+    toolCalling: {
+      modelSupport: 'documented',
+      integration: 'pending',
+      source: 'https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512',
+    },
+  },
+  {
+    id: 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+    label: 'Mistral 7B Instruct · Experimental',
+    tier: 'Experimental',
+    group: 'mistral7b',
+    family: 'mistral7b',
+    backend: 'webllm',
+    requires: ['shader-f16'],
+    approxBytes: 0,
+    maxNumTokens: 4096,
+    experimental: true,
+    precision: 'q4f16',
+    catalogRole: 'primary',
+    license: 'apache-2.0',
+    purpose: 'Larger experimental chat option.',
+    reasoning: 'none',
+    runtimeVersion: '0.2.86',
+    estimatedWorkingBytes: Math.round(4573.39 * 1e6),
+    overrides: { context_window_size: 4096, sliding_window_size: -1 },
+    modelLibUrl: `${WEBLLM_LIB_PREFIX}Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm`,
+    capabilities: { chat: true, docs: true, tools: false },
+    toolCalling: {
+      modelSupport: 'documented',
+      integration: 'pending',
+      source: 'https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3',
+    },
+  },
 ];
 export const MODEL_OPTIONS: ModelOption[] = models.map((model) => ({
   ...model,

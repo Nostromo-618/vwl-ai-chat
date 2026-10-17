@@ -34,8 +34,8 @@ import {
 import { LLM_OUTPUT_BLOCK_MESSAGE } from '../src/guardrails/llm.js';
 
 describe('MODEL catalog', () => {
-  it('groups include gemma4 and liquid', () => {
-    expect(MODEL_GROUPS.map((g) => g.id)).toEqual(['gemma4', 'liquid']);
+  it('groups include gemma, liquid, and the experimental Mistral families', () => {
+    expect(MODEL_GROUPS.map((g) => g.id)).toEqual(['gemma4', 'liquid', 'ministral3', 'mistral7b']);
   });
 
   it('recommended default is Gemma 4 E2B LiteRT web-official', () => {
@@ -176,6 +176,7 @@ describe('LiteRT runtime guards', () => {
   });
 
   it('rewriteLiteRTLoadError normalizes CSP and PrefillDecode', () => {
+    expect(LITERT_PREFILLDECODE_UNSUPPORTED_REASON).not.toMatch(/Qwen3/);
     const pd = rewriteLiteRTLoadError(new Error('Streaming kTfLitePrefillDecode models'));
     expect(pd.message).toBe(LITERT_PREFILLDECODE_UNSUPPORTED_REASON);
 
